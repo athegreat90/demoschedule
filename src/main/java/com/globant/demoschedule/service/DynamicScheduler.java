@@ -6,6 +6,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.log4j.Log4j2;
 import org.springframework.context.annotation.Bean;
 import org.springframework.scheduling.TaskScheduler;
+import org.springframework.scheduling.Trigger;
 import org.springframework.scheduling.annotation.SchedulingConfigurer;
 import org.springframework.scheduling.concurrent.ThreadPoolTaskScheduler;
 import org.springframework.scheduling.config.ScheduledTaskRegistrar;
@@ -32,7 +33,7 @@ public class DynamicScheduler implements SchedulingConfigurer
         configSeg.setValue("15");
 
         var resultSeg = repo.save(configSeg);
-        System.out.println("Result: " + resultSeg);
+        log.info("Result: " + resultSeg);
     }
 
     @PreDestroy
@@ -60,16 +61,26 @@ public class DynamicScheduler implements SchedulingConfigurer
         // Next execution time is taken from DB, so if the value in DB changes, next execution time will change too.
         Config timeRefreshInSeg = repo.getConfigByName("TIME_REFRESH_IN_SEG");
         log.info(timeRefreshInSeg);
+        taskRegistrar.addTriggerTask(executeRunner(), executeTrigger());
+    }
 
+    // The action to execute each time
+    private Runnable executeRunner()
+    {
+        return () -> scheduledDatabase(repo.getConfigByName("TIME_REFRESH_IN_SEG").getValue());
+    }
 
-        taskRegistrar.addTriggerTask(() -> scheduledDatabase(repo.getConfigByName("TIME_REFRESH_IN_SEG").getValue()), t ->
+    // Set the next execution time
+    private Trigger executeTrigger()
+    {
+        return t ->
         {
             Calendar nextExecutionTime = new GregorianCalendar();
             Date lastActualExecutionTime = t.lastActualExecutionTime();
             nextExecutionTime.setTime(lastActualExecutionTime != null ? lastActualExecutionTime : new Date());
             nextExecutionTime.add(Calendar.SECOND, Integer.parseInt(repo.getConfigByName("TIME_REFRESH_IN_SEG").getValue()));
             return nextExecutionTime.getTime();
-        });
+        };
     }
 
     public void scheduledDatabase(String time)
