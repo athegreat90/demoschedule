@@ -6,4 +6,6 @@ import org.springframework.data.mongodb.repository.MongoRepository;
 public interface ConfigRepo extends MongoRepository<Config, String>
 {
     Config getConfigByName(String name);
+
+    Long countConfigByName(String name);
 }
