@@ -7,11 +7,9 @@ import com.globant.demoschedule.repo.ConfigRepo;
 import com.globant.demoschedule.repo.PeopleRepo;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.log4j.Log4j2;
-import org.springframework.context.annotation.Bean;
 import org.springframework.scheduling.TaskScheduler;
 import org.springframework.scheduling.Trigger;
 import org.springframework.scheduling.annotation.SchedulingConfigurer;
-import org.springframework.scheduling.concurrent.ThreadPoolTaskScheduler;
 import org.springframework.scheduling.config.ScheduledTaskRegistrar;
 import org.springframework.stereotype.Service;
 
@@ -29,6 +27,7 @@ public class DynamicScheduler implements SchedulingConfigurer
 {
     private final ConfigRepo configRepo;
     private final PeopleRepo peopleRepo;
+    private final TaskScheduler poolScheduler;
 
     @PostConstruct
     private void init()
@@ -66,21 +65,13 @@ public class DynamicScheduler implements SchedulingConfigurer
         peopleRepo.deleteAll();
     }
 
-    @Bean
-    public TaskScheduler poolScheduler()
-    {
-        ThreadPoolTaskScheduler scheduler = new ThreadPoolTaskScheduler();
-        scheduler.setThreadNamePrefix("ThreadPoolTaskScheduler");
-        scheduler.setPoolSize(1);
-        scheduler.initialize();
-        return scheduler;
-    }
+
 
     // We can have multiple tasks inside the same registrar as we can see below.
     @Override
     public void configureTasks(ScheduledTaskRegistrar taskRegistrar)
     {
-        taskRegistrar.setScheduler(poolScheduler());
+        taskRegistrar.setScheduler(poolScheduler);
 
         // Next execution time is taken from DB, so if the value in DB changes, next execution time will change too.
         Config timeRefreshInSeg = configRepo.getConfigByName("TIME_REFRESH_IN_SEG");
@@ -113,7 +104,7 @@ public class DynamicScheduler implements SchedulingConfigurer
         log.info("Size of {} is {}", "Name of state Antioquia in level 1", peopleRepo.countPeopleByStateName("Antioquia"));
         log.info("Size of {} is {}", "Name of state Santander in level 1", peopleRepo.countPeopleByStateName("Santander"));
 
-        log.info("Size of {} is {}", "Name of state Santander in level 1 and regex start with 'San'", peopleRepo.countPeopleByStateNameRegex("^San"));
+        log.info("Size of {} is {}", "Name of state begin with 'San' in level 1 using regex", peopleRepo.countPeopleByStateNameRegex("^San"));
         log.info("Size of {} is {}", "Name of state Santander in level 1 and Contains 'Santander'", peopleRepo.countPeopleByStateNameContains("Santander"));
         log.info("scheduledDatabase: Next execution time of this will be taken from DB -> {}\n", time);
     }
